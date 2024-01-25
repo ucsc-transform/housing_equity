@@ -210,6 +210,11 @@ owner_df <- as.data.frame(table(df$OWNER.1.FULL.NAME))
 # we get a sense of the name patterns for public owners
 bigowner_df <- owner_df[owner_df$Freq > 10,]
 
+# Create a new column called public_owner
+# that is 1 for true and 0 for false
+# that is an estimate of whether or not parcel is publically owned
+# based on data in the OWNER.1.FULL.NAME and COUNTY.USE.DESCRIPTION cols
+#
 # NOTES
 # The Column "COUNTY.USE.DESCRIPTION" has a value of "public" but it's not comprehensive, as far as I can tell
 # Can grep "city of" or "state of" or "county of" or "public " or "public works" or "school dist" from OWNER.1.FULL.NAME
@@ -304,6 +309,9 @@ pubtab_df <- as.data.frame(table(pub_df$COUNTY.USE.DESCRIPTION))
 pubtab2_df <- as.data.frame(table(pub_df$OWNER.1.FULL.NAME))
 # Now let's categorize all the use_types
 
+# Create new variable use_type from CL data
+# This is a reclass/reduction/summary of data in
+# the OWNER.1.FULL.NAME and COUNTY.USE.DESCRIPTION cols
 pub_df <- pub_df %>%
   mutate(use_type = dplyr::case_when(
     grepl('fire', OWNER.1.FULL.NAME, ignore.case = T) ~ "FIRE",
@@ -342,11 +350,13 @@ table(pub_df$use_type)
 
 countyuse2usetype_table <- as.data.frame(table(pub_df[pub_df$use_type=="OTHER",]$COUNTY.USE.DESCRIPTION))
 ownername2usetype_table <- as.data.frame(table(pub_df[pub_df$use_type=="OTHER",]$OWNER.1.FULL.NAME))
+
 # note we still have a lot of "OTHER"
 
-##THEN add a column for Owner_type
-####
-
+## Add a column for Owner Category (owner_cat)
+# This is a reclass/reduction of data in 
+# the OWNER.1.FULL.NAME and COUNTY.USE.DESCRIPTION cols
+#
 pub_df <- pub_df %>%
   mutate(owner_cat = dplyr::case_when(
     grepl('city|municipal', OWNER.1.FULL.NAME, ignore.case = T) ~ 'CITY',
@@ -378,7 +388,7 @@ table(pub_df$SITUS.COUNTY, useNA = "always")
 #  3906         32       3012          0
 
 ####################################
-# CORELOGIC data columns
+# CORELOGIC derived data columns
 # - We already reviewed these above
 # - we just added 
 #-- "public_owner", "use_type", "owner_cat"
@@ -486,9 +496,9 @@ table(pub_spdf$SITUS.COUNTY)
 # PARCEL DATA 
 ##############################################################################
 
-###################################
+########################## 
 # San Benito Parcels
-#######################################
+##########################
 
 sbparcels = read_sf(sbparcel_file)
 
@@ -533,10 +543,12 @@ table(pub_spdf$SITUS.COUNTY, useNA = "ifany")
 st_crs(pub_spdf) == st_crs(scparcels)
 scparcels <- st_transform(scparcels, st_crs(pub_spdf))
 st_crs(pub_spdf) == st_crs(scparcels)
+dim(scparcels) #[1] 97021    59
 
 # Make valid and then subset
-scparcels <- st_make_valid(scparcels)
-sc_cl_parcels <- scparcels[pub_spdf,]
+scparcels0 <- st_make_valid(scparcels)
+dim(scparcels0) #97021
+sc_cl_parcels <- scparcels0[pub_spdf,]
 
 # SC Parcels that have points/data in the CL data
 dim(sc_cl_parcels) # should be 2987 parcels
@@ -565,16 +577,24 @@ st_crs(pub_spdf) == st_crs(moparcels)
 
 # Make valid and then subset
 moparcels <- st_make_valid(moparcels)
-mo_cl_parcels <- moparcels[pub_spdf,]
+# select only moparcels that spatially intersect pub_spdf points
+mo_cl_parcel_polys <- moparcels[pub_spdf,] # spatial subset
+# select only pub_spdf pts that spatially intersect mo_parcels
+mo_cl_parcel_points <- pub_spdf[moparcels,]
 
 # MO Parcels that have points/data in the CL data
-dim(mo_cl_parcels) # should be 2987 parcels
+dim(mo_cl_parcel_polys) # should be 3608 parcels
 #[1] 3566   90
+dim(mo_cl_parcel_points) # should be 3608 parcels
+#[1] 3608   35
+# THESE NUMBERS ARE NOT THE SAME (off by 42)
+# They differ spatially bc more than one point is intersecting some polygons
+# and some points are not within any polygons
 #
 # Remove files from memory
 #
-rm(moparcels)
-
+#rm(moparcels)
+mo_cl_parcels <- mo_cl_parcel_polys
 # check
 plot(mo_cl_parcels$geometry, col="green")
 plot(sb_cl_parcels$geometry, col="blue")
@@ -666,14 +686,6 @@ colnames(moparcels_pub)
 ## None of this data is in the SB parcels but not many SB parcels anyway
 ################################################################################
 
-# first we need to rename the spdfs due to code cut/paste diff
-
-mo_mini_df <- moparcels_pub
-sc_mini_df <- scparcels_pub
-sb_mini_df <- sbparcels_pub
-
-#rm(moparcels_pub, sbparcels_pub, scparcels_pub)
-
 #---------------------
 # Fire hazard areas
 #---------------------
@@ -681,11 +693,11 @@ sb_mini_df <- sbparcels_pub
 # Mo FIre: MO_SRA_Fire_Haz_Zones
 #
 # Fire - take a look
-table(mo_mini_df$MO_SRA_Fire_Haz_Zones, useNA = "always")
-table(sc_mini_df$SC_SRESPAREA, useNA = "always")
+table(moparcels_pub$MO_SRA_Fire_Haz_Zones, useNA = "always")
+table(scparcels_pub$SC_SRESPAREA, useNA = "always")
 
 # Fire - reclass MoCo values
-mo_mini_df <- mo_mini_df %>%
+moparcels_pub <- moparcels_pub %>%
   mutate(infirezone = dplyr::case_when(
     grepl('high|moderate', MO_SRA_Fire_Haz_Zones, ignore.case=T) ~ "YES",
     grepl('None', MO_SRA_Fire_Haz_Zones, ignore.case=T) ~ "No",
@@ -693,7 +705,7 @@ mo_mini_df <- mo_mini_df %>%
   ))
 
 # Fire - reclass SCCo values
-sc_mini_df <- sc_mini_df %>%
+scparcels_pub <- scparcels_pub %>%
   mutate(infirezone = dplyr::case_when(
     grepl('high|moderate', SC_SRESPAREA, ignore.case=T) ~ "YES",
     SC_SRESPAREA == 'LRA' ~ "LRA",
@@ -702,13 +714,13 @@ sc_mini_df <- sc_mini_df %>%
     TRUE ~ "Not Applicable"
   ))
 
-sb_mini_df <- sbparcels_pub
-sb_mini_df$infirezone <- "no data"
+sbparcels_pub <- sbparcels_pub
+sbparcels_pub$infirezone <- "no data"
 
 # check
-table(mo_mini_df$infirezone, useNA = "always")
-table(sc_mini_df$infirezone, useNA = "always")
-table(sb_mini_df$infirezone, useNA = "always")
+table(moparcels_pub$infirezone, useNA = "always")
+table(scparcels_pub$infirezone, useNA = "always")
+table(sbparcels_pub$infirezone, useNA = "always")
 
 #---------------------
 # Earthquake hazards
@@ -716,21 +728,21 @@ table(sb_mini_df$infirezone, useNA = "always")
 # SC EARTHQUAKE: SC_FAULTZONE
 # MO EARTHQUAKE: MO_Actv_Fault_Buffer
 # Earthquake faultzone
-table(mo_mini_df$MO_Actv_Fault_Buffer, useNA = "always")
-table(sc_mini_df$SC_FAULTZONE, useNA = "always")
+table(moparcels_pub$MO_Actv_Fault_Buffer, useNA = "always")
+table(scparcels_pub$SC_FAULTZONE, useNA = "always")
 
 # Earthquake - reclass MoCo
-mo_mini_df <- mo_mini_df %>%
+moparcels_pub <- moparcels_pub %>%
   mutate(infaultzone = dplyr::case_when(
     grepl('None', MO_Actv_Fault_Buffer, ignore.case=T) ~ "NO",
     grepl('YES', MO_Actv_Fault_Buffer, ignore.case=T) ~ "YES",
     TRUE ~ "Not Applicable"
   ))
 
-table(mo_mini_df$infaultzone, useNA = "always")
+table(moparcels_pub$infaultzone, useNA = "always")
 
 # Earthquake - reclass SCCo
-sc_mini_df <- sc_mini_df %>%
+scparcels_pub <- scparcels_pub %>%
   mutate(infaultzone = dplyr::case_when(
     grepl('FZ', SC_FAULTZONE, ignore.case=F) ~ "YES",
     #grepl('n/a',  SC_FAULTZONE, ignore.case=T) ~ "Not Applicable",
@@ -738,10 +750,10 @@ sc_mini_df <- sc_mini_df %>%
   ))
 
 #check
-table(sc_mini_df$infaultzone, useNA="always")
+table(scparcels_pub$infaultzone, useNA="always")
 
 #sb
-sb_mini_df$infaultzone <- "no data"
+sbparcels_pub$infaultzone <- "no data"
 
 #---------------------
 #steep slopes
@@ -750,9 +762,9 @@ sb_mini_df$infaultzone <- "no data"
 # SC Slope gt25: no data (i.e. pending calc)
 # sb no data
 # only avail in MoCo parcel data
-table(mo_mini_df$MO_Slope_GT25, useNA="always")
+table(moparcels_pub$MO_Slope_GT25, useNA="always")
 
-mo_mini_df <- mo_mini_df %>%
+moparcels_pub <- moparcels_pub %>%
   mutate(slopeGT25 = dplyr::case_when(
     MO_Slope_GT25=="Yes" ~ "YES",
     MO_Slope_GT25=="None" ~ "NO",
@@ -760,59 +772,85 @@ mo_mini_df <- mo_mini_df %>%
   ))
 
 # Check
-table(mo_mini_df$slopeGT25, useNA="always")
+table(moparcels_pub$slopeGT25, useNA="always")
 
-sc_mini_df$slopeGT25 <-'no data'
-sb_mini_df$slopeGT25 <-'no data'
+scparcels_pub$slopeGT25 <-'no data'
+sbparcels_pub$slopeGT25 <-'no data'
 
 # Coastal Zone
 # Mo Coastal zone: MO_Costl_Zone
 # SC coastal Zone: SC_COASTALZN
 # sb no data but not on coast
-table(mo_mini_df$MO_Costl_Zone, useNA="always")
-table(sc_mini_df$SC_COASTALZN, useNA="always")
+table(moparcels_pub$MO_Costl_Zone, useNA="always")
+table(scparcels_pub$SC_COASTALZN, useNA="always")
 
-mo_mini_df <- mo_mini_df %>%
+moparcels_pub <- moparcels_pub %>%
   mutate(incoastzone = dplyr::case_when(
     MO_Costl_Zone=="Yes" ~ "YES",
     #MO_Costl_Zone=="None" ~ "NO",
     TRUE ~ "NO"
   ))
 
-sc_mini_df <- sc_mini_df %>%
+scparcels_pub <- scparcels_pub %>%
   mutate(incoastzone = dplyr::case_when(
     grepl('Yes', SC_COASTALZN, ignore.case=T) ~ "YES",
     #grepl('No',  SC_COASTALZN, ignore.case=T) ~ "NO",
     TRUE ~  "NO"
   ))
 
-sb_mini_df$incoastzone =  "NO"
+sbparcels_pub$incoastzone =  "NO"
 
 #check
-table(mo_mini_df$incoastzone, useNA="always")
-table(sc_mini_df$incoastzone, useNA="always")
-table(sb_mini_df$incoastzone, useNA="always")
+table(moparcels_pub$incoastzone, useNA="always")
+table(scparcels_pub$incoastzone, useNA="always")
+table(sbparcels_pub$incoastzone, useNA="always")
 
 # Flood zoon
 # SC Flood: downloaded - need to intersect
 # MO FLOOD: MO_Flood_Zone
 # sb no data
+mo2 <- moparcels_pub[c('pdata_APN')]
+sc2 <- scparcels_pub[c('pdata_APN')]
+sb2 <-sbparcels_pub[c('pdata_APN')]
+allp <- rbind(mo2, sc2, sb2)
+dim(allp) #6587    2
 
 # SC Flood: downloaded - need to intersect
 # Flood hazards downloaded from
 # https://www.santacruzcountyca.gov/Departments/GeographicInformationSystems(GIS).aspx
 sc_flood <- st_read("constraints/SC_FEMA_Flood_Hazard_Areas/FEMA_Flood_Hazard_Areas.shp")
-sc_flood <- st_transform(sc_flood, st_crs(sc_mini_df))
-st_crs(sc_mini_df) == st_crs(sc_flood)
+sc_flood <- st_transform(sc_flood, st_crs(scparcels_pub))
+st_crs(scparcels_pub) == st_crs(sc_flood)
 
 # join the count back to the Alameda County census tract data frame `tracts_acs_sf_ac2`
 sc_flood <- st_make_valid(sc_flood)
-sc_mini_df <- st_join(sc_mini_df, sc_flood['FLD_ZONE'])
+
+# spatial join
+scparcels_pub_with_flood <- st_join(scparcels_pub, sc_flood['FLD_ZONE'])
 
 # take a look at the output
-#View(sc_mini_df)
+View(scparcels_pub_with_flood)
+dim(scparcels_pub_with_flood)
+dim(scparcels_pub)
+#
+# ok we have picked up a bunch of parcels bc
+# parcel likely intersected +1 flood zones
+# so want to flatten, eg 00226103
 
-table (sc_mini_df$FLD_ZONE, useNA="always")
+#test - flatten flood vars into one-to-one 
+doh <- scparcels_pub_with_flood[scparcels_pub_with_flood$pdata_APN == '00226103',]
+paste(unlist(doh$FLD_ZONE),collapse = "+")
+#try test on entire data set
+doh <- scparcels_pub_with_flood %>% group_by(., pdata_APN) %>% 
+  mutate(
+   floodstring = paste(unlist(unique(FLD_ZONE)),collapse = "+")
+  )
+# above works but still need to 
+## - convert code to descriptive strings
+## - remove FLD_ZONE and then de-dupe
+
+table (scparcels_pub_with_flood$FLD_ZONE, useNA="always")
+
 # FEMA Flood Hazard Areas - downloaded for SC
 # 100 Year Flood Zone - A
 # 100 Year Flood Zone - A99
@@ -822,45 +860,77 @@ table (sc_mini_df$FLD_ZONE, useNA="always")
 # 100 Year Flood Zone - VE
 # 500 Year Flood Zone - X
 
-mo_mini_df <- mo_mini_df %>%
+scparcels_pub_with_flood <- scparcels_pub_with_flood %>%
+  mutate(floodzone_desc = dplyr::case_when(
+    grepl('X',FLD_ZONE, ignore.case=T) ~ "YES 500 year",
+    grepl('A|V', FLD_ZONE, ignore.case=T) ~ "YES 100 year",
+    TRUE ~ "NO"
+  )) 
+
+scparcels_pub_with_flood <- scparcels_pub_with_flood %>% group_by(., pdata_APN) %>% 
+  mutate(
+    floodstring = paste(unlist(unique(floodzone_desc)),collapse = "+")
+  )
+
+table(scparcels_pub_with_flood$floodstring, useNA="always")
+
+# standardize
+scparcels_pub_with_flood <- scparcels_pub_with_flood %>%
+  mutate(infloodzone = dplyr::case_when(
+    floodstring == 'YES 100 year' ~ "YES 100 year",
+    floodstring == 'YES 500 year' ~ "YES 500 year",
+    floodstring == 'YES 100 year+YES 500 year' ~ "YES 100 year and 500 year",
+    floodstring == 'YES 500 year+YES 100 year' ~ "YES 100 year and 500 year",
+    TRUE ~ "NO"
+  ))
+# Drop temp cols
+scparcels_pub_with_flood2 <- scparcels_pub_with_flood %>%
+    select (-c(FLD_ZONE, floodstring, floodzone_desc))
+# drop dup cols
+doh <- scparcels_pub_with_flood2 %>% distinct()
+
+# check
+dim(scparcels_pub_with_flood2)
+dim(scparcels_pub)
+dim(doh)
+
+#rename
+scparcels_pub <- doh
+#-----
+
+moparcels_pub <- moparcels_pub %>%
   mutate(infloodzone = dplyr::case_when(
     grepl('X',MO_Flood_Zone, ignore.case=T) ~ "YES 500 year",
     grepl('A|V', MO_Flood_Zone, ignore.case=T) ~ "YES 100 year",
     TRUE ~ "NO"
   ))
 
-sc_mini_df <- sc_mini_df %>%
-  mutate(infloodzone = dplyr::case_when(
-    grepl('X',FLD_ZONE, ignore.case=T) ~ "YES 500 year",
-    grepl('A|V', FLD_ZONE, ignore.case=T) ~ "YES 100 year",
-    TRUE ~ "NO"
-  )) 
 
-sb_mini_df$infloodzone <- "no data"
+sbparcels_pub$infloodzone <- "no data"
 
 # check
-table(mo_mini_df$infloodzone, useNA="always")
-table(sc_mini_df$infloodzone, useNA="always")
-table(sb_mini_df$infloodzone, useNA="always")
+table(moparcels_pub$infloodzone, useNA="always")
+table(scparcels_pub$infloodzone, useNA="always")
+table(sbparcels_pub$infloodzone, useNA="always")
 
-colnames(mo_mini_df)
-colnames(sc_mini_df)
-colnames(sb_mini_df)
+colnames(moparcels_pub)
+colnames(scparcels_pub)
+colnames(sbparcels_pub)
 # COUNTY Land Use values
 #"MO_Land_Use", "SC_USECDDESC"
 
 # check
-doh <- as.data.frame(table(mo_mini_df$"MO_Land_Use", useNA="always"))
-doh2 <- as.data.frame(table(sc_mini_df$"SC_USECDDESC", useNA="always"))
+doh <- as.data.frame(table(moparcels_pub$"MO_Land_Use", useNA="always"))
+doh2 <- as.data.frame(table(scparcels_pub$"SC_USECDDESC", useNA="always"))
 
-mo_mini_df$pdata_luse <- mo_mini_df$MO_Land_Use
-sc_mini_df$pdata_luse <- sc_mini_df$SC_USECDDESC
-sb_mini_df$pdata_luse <- "no data"
+moparcels_pub$pdata_luse <- moparcels_pub$MO_Land_Use
+scparcels_pub$pdata_luse <- scparcels_pub$SC_USECDDESC
+sbparcels_pub$pdata_luse <- "no data"
 
-# Add parcel data county to each mini_df
-mo_mini_df$pdata_county <- "MONTEREY"
-sb_mini_df$pdata_county <- "SAN BENITO"
-sc_mini_df$pdata_county <- "SANTA CRUZ"
+# Add parcel data county to each spdf
+moparcels_pub$pdata_county <- "MONTEREY"
+sbparcels_pub$pdata_county <- "SAN BENITO"
+scparcels_pub$pdata_county <- "SANTA CRUZ"
 
 #####################################################
 # Subset parcel data to keep only 
@@ -872,14 +942,14 @@ sc_mini_df$pdata_county <- "SANTA CRUZ"
 parcel_cols <- c("pdata_APN", "infirezone", "infaultzone", "slopeGT25",
                  "incoastzone", "infloodzone", "pdata_luse", "pdata_county")
 
-head(sb_mini_df[parcel_cols])
-head(sc_mini_df[parcel_cols])
-head(mo_mini_df[parcel_cols])
+head(sbparcels_pub[parcel_cols])
+head(scparcels_pub[parcel_cols])
+head(moparcels_pub[parcel_cols])
 
 #subset to keep only apn15, geom (automatic), and our parcel cols
-sc2 <- sc_mini_df[parcel_cols]
-sb2 <- sb_mini_df[parcel_cols]
-mo2 <- mo_mini_df[parcel_cols]
+sc2 <- scparcels_pub[parcel_cols]
+sb2 <- sbparcels_pub[parcel_cols]
+mo2 <- moparcels_pub[parcel_cols]
 # check match
 colnames(sc2) == colnames(sb2)
 colnames(sc2) == colnames(mo2)
@@ -905,18 +975,24 @@ dim(sc2)
 dim(sb2)
 dim(mo2)
 table(pub_df$SITUS.COUNTY, useNA = "always")
+#MONTEREY SAN BENITO SANTA CRUZ       <NA> 
+#  3906         32       3012          0 
+table(mobay_spdf$pdata_county, useNA = "always")
+#MONTEREY SAN BENITO SANTA CRUZ       <NA> 
+#  3566         32       2989          0 
 
+dim(pub_df) #[1] 6950   36
+dim(mobay_spdf)# [1] 6587    9
 # NOTE:
-# at this point we have about 1,000 more
+# at this point we have 363 more
 # rows in the parcel mobay_spdf than in the
 # core logic pub_df
 # this could be duplicates or it could be
-# multipart polys
+# multipart polys or my error in processing 
 class(mobay_spdf)
 class(mobay_spdf$geometry)
 
 # lets ad a UID to all parcel rows
-
 mobay_spdf$uid <-seq.int(nrow(mobay_spdf))
 nrow(mobay_spdf) == length(unique(mobay_spdf$uid))
 
@@ -925,22 +1001,28 @@ plot(mobay_spdf[mobay_spdf$pdata_county=="MONTEREY",]$geometry)
 plot(mobay_spdf[mobay_spdf$pdata_county=="SAN BENITO",]$geometry)
 plot(mobay_spdf[mobay_spdf$pdata_county=="SANTA CRUZ",]$geometry)
 
-#################################
-# Check filters
-#################################
+#######################################
+# Check filter vals - don't want NAs
+#######################################
 doh <- as.data.frame(table(pub_df$MUNICIPALITY.NAME, useNA="always"))
+doh #<NA> 3938
+doh <- as.data.frame(table(pub_df$ZONING.CODE.DESCRIPTION, useNA="always"))
+doh# 5039
 doh <- as.data.frame(table(pub_df$SITUS.COUNTY, useNA="always"))
+doh # 0
 doh <- as.data.frame(table(pub_df$owner_cat, useNA="always"))
+doh # 0
 doh <- as.data.frame(table(pub_df$use_type, useNA="always"))
+doh #0
 # check these vals too
 as.data.frame(table(mobay_spdf$infirezone, useNA="always"))
 as.data.frame(table(mobay_spdf$infloodzone, useNA="always"))
 as.data.frame(table(mobay_spdf$infaultzone, useNA="always"))
-
+#fixes
+pub_df <- pub_df %>% replace_na(list(MUNICIPALITY.NAME = 'none or no data', ZONING.CODE.DESCRIPTION = "none or no data"))
 #############################
 #Check coord values
 #############################
-
 nrow(is.na(mobay_spdf$geometry))
 nrow(mobay_spdf[is.na(mobay_spdf$geometry),])
 
@@ -985,8 +1067,10 @@ parcel_polys <- parcel_polys %>%
 
 # Any duplicate APNs?
 length(unique(parcel_polys$pdata_APN)) #6587
-dim(parcel_polys) # 7113 - so yes 526 dupes
+dim(parcel_polys) # 6587 - so yes no dupes
 
+#parcel_acres are too hard to filter bc of range so make a simple binary for filtering
+parcel_polys$acresGTquarter <- if_else(parcel_polys$parcel_acres >=0.25, "YES", "NO")
 ############################################
 # Join corelogic data to the parcel data
 ############################################
@@ -1026,6 +1110,198 @@ dupUids_spdf <- joined_sf[joined_sf$uid %in% dupUids,]
 ## Save  to files
 #########################################################################
 
-#write_sf(obj = joined_sf, dsn = "mobay_cl_and_parcel_data.geojson")
-#write_sf(obj = dupClip_spdf, dsn = "mobay_cl_and_parcel_data_dupClips.geojson")
-write_sf(obj = dupUids_spdf, dsn = "mobay_cl_and_parcel_data_dupUids.geojson")
+write_sf(obj = joined_sf, dsn = "mobay_cl_and_parcel_data.geojson")
+
+#=============================================================================
+# Sanity checks
+#=============================================================================
+# df is full CL dataset rows but with fewer cols
+# df0 is CL dataset with corporate ownership
+# df1/pub_df is CL dataset that we estimate is publically owned
+# pub_geom_df is the CL dataship public owned with geom
+# pub_spdf is spatial df of pub_geom_df
+
+# how many CL rows are coded as corporate owner
+dim(df) #[1] 36319    31
+
+# how many CL rows have unique CLIP
+length(unique(df$CLIP)) #36319
+
+# how many CL rows have unique Parcel IDs
+length(unique(df$ORIGINAL.APN)) #36319
+length(unique(df$APN_PARCEL_NUM_UNFORMATTED)) #36319
+length(unique(df$ONLINE.FORMATTED.PARCEL.ID)) #36319
+
+# How many CL rows have lon/lats
+nrow(df[df$PARCEL.LEVEL.LATITUDE != '',]) #0
+nrow(df[!is.na(df$PARCEL.LEVEL.LATITUDE),]) #[1] 33095
+
+# How many CL rows have we estimated to have public owner
+nrow(df1[df1$public_owner==1,]) #6950
+nrow(pub_df[pub_df$public_owner==1,]) #6950
+
+# How many CL rows, pub owned have geom
+nrow(pub_geom_df) #6626 (324 fewer)
+nrow(pub_spdf) #6626 (same as above but spatial)
+# why fewer - because we ddropped cl rows w/no geom
+nrow(df1[df1$public_owner==1 & is.na(df$PARCEL.LEVEL.LATITUDE),]) #324
+
+# Did we lose or gain any parcels along the way
+# and if yes why?
+dim(sb_cl_parcels) #32
+nrow(pub_spdf[pub_spdf$SITUS_COUNTY=="SAN BENITO",]) #31
+nrow(joined_sf[joined_sf$SITUS_COUNTY=="SAN BENITO",]) #32
+nrow(joined_sf[joined_sf$pdata_county=='SAN BENITO',]) #32
+# so l ooks like a county mismatch or dup parcel that crosses county line
+
+# WHAT ROWS are in the CL data that are not in the combined cl-parcel data?
+cldiff <- unlist(setdiff(pub_spdf[pub_spdf$SITUS_COUNTY=="SAN BENITO",]$CLIP, joined_sf[joined_sf$pdata_county=='SAN BENITO',]$CLIP ))
+cldiff
+#numeric(0)
+
+# WHAT ROWs are in the Parcel+CL data that were not in the CL data
+pdiff <- unlist(setdiff(joined_sf[joined_sf$pdata_county=='SAN BENITO',]$CLIP, pub_spdf[pub_spdf$SITUS_COUNTY=="SAN BENITO",]$CLIP ))
+pdiff
+#[1] 4209133238
+sb_pdiff <- joined_sf[joined_sf$CLIP %in% pdiff,]
+## This CLIP has one row in the CL data w/in Santa Cruz county and two rows
+## in the parcel data - one in Santa Cruz (8.22 acres) and one in San Benito (1.7acres)
+## the CL ORIGNINAL.APN is 11025108 (sc)
+## the Parceldata APNs are pdata_APN == 11025108 (sc) and 0110400020 (sb)
+
+## Santa cruz checks
+dim(sc_cl_parcels) #2989
+nrow(pub_spdf[pub_spdf$SITUS_COUNTY=="SANTA CRUZ",]) #2987
+# check difs - what CL rows are not in the joined data?
+cldiff <- unlist(setdiff(pub_spdf[pub_spdf$SITUS_COUNTY=="SANTA CRUZ",]$CLIP, joined_sf[joined_sf$pdata_county=='SANTA CRUZ',]$CLIP ))
+cldiff
+#[1] 8368801894 2344249575 8741225145 5824245049 2726159633 8551421127 6786356471 5077199464 2600303052 5396889904 8383529543 2721499372
+#[13] 2338972869
+sc_cldiff <- pub_spdf[pub_spdf$CLIP %in% cldiff,]
+
+sc_cldiff2 <- joined_sf[joined_sf$pdata_APN %in% sc_cldiff$ORIGINAL_APN,] # the APNs are not in there either
+sc_cldiff3 <- scparcels0[scparcels0$APNNODASH %in% sc_cldiff$ORIGINAL_APN,] # the APNs are not in there either
+
+tmap_mode('view')
+qtm(sc_cl_parcels ) + qtm(sc_cldiff)
+# when I look at the cl points that are not in the SC data its because they don't intersect any sc_cl_parcels
+qtm(scparcels0) + qtm(sc_cldiff)
+qtm(sc_cldiff3) + qtm(sc_cldiff)
+
+# FINDING
+# the 13 CL points in cldiff are IN the sc parcel data but they did not get selected via
+# spatial intersection due to geometry issues - the SC parcels are oddly shapped and the CL points don't intersect
+# SO further upstream (RIGHT after the spatial intersection) we can manually add these
+
+# Ok so what Parcel rows are in JOINED data but NOT the CL data
+pdiff <- setdiff(joined_sf[joined_sf$pdata_county=='SANTA CRUZ',]$CLIP, pub_spdf[pub_spdf$SITUS_COUNTY=="SANTA CRUZ",]$CLIP )
+#[1] 6380726482 7368375233
+
+qtm(joined_sf[joined_sf$CLIP %in% pdiff,]) + qtm(pub_spdf[pub_spdf$CLIP %in% pdiff,])
+
+# FINDING
+# those two pdfiff polys ARE in the output data in 4 parcel polys, 2 in moco and 2 in sc
+# but the CL points are only in moco. so no data loss but data gain - no action needed.
+
+#####################################
+# MONTEREY PARCEL Discrepancies
+#####################################
+dim(mo_cl_parcels) #3566
+mo_pub_spdf <- pub_spdf[pub_spdf$SITUS_COUNTY=="MONTEREY",]
+nrow(mo_pub_spdf) #3608 (+42 rows)
+mo_joined <- joined_sf[joined_sf$SITUS_COUNTY=="MONTEREY",]
+nrow(mo_joined) #3636 (+70 rows)
+nrow(joined_sf[joined_sf$pdata_county=="MONTEREY",]) #3634
+# so different county values (pdata_county vs SITUS_COUNTY) for two rows
+
+doha<- as.data.frame(table(mo_pub_spdf$CLIP)) # any dups
+nrow(doha[doha$Freq > 1,])
+#[1] 0 # no dup clips
+dohb<- as.data.frame(table(mo_pub_spdf$ORIGINAL_APN)) # any dups
+#[1] 0 #nrow(dohb[dohb$Freq > 1,])
+# no dup APNs
+
+# ANY missing APNS
+mo_cl_parcels[!(mo_cl_parcels$APN %in% mo_pub_spdf$ORIGINAL_APN),]
+# so why mo_pub_spdf has 42 more rows than mo_cl_parcels?
+(mo_missing = st_disjoint(mo_cl_parcels,mo_pub_spdf, sparse=FALSE))
+#apply(mo_missing, 1, any)
+nrow(mo_cl_parcels[!apply(mo_missing, 1, any),])
+nrow(mo_pub_spdf)
+nrow(mo_missing)
+nrow(mo_pub_spdf[!(mo_pub_spdf$ORIGINAL_APN %in% mo_cl_parcels$APN),])
+qtm(mo_cl_parcels) + qtm(mo_pub_spdf[!(mo_pub_spdf$ORIGINAL_APN %in% mo_cl_parcels$APN),])
+#eg
+#113092014000 in mo_pub ORIGINAL_APN
+#113092013000 in mo_cl APN
+
+# Finding
+# in mo_pub_spdf (CL pub rows for MoCo there are no dupe APNs or CLIPs)
+# but once we join with the moparcel data we get dupes
+# eg
+
+mo_joined <-joined_sf[joined_sf$SITUS_COUNTY=="MONTEREY",] 
+nrow(mo_joined) #3636 (+70 rows)
+doh1<- as.data.frame(table(mo_joined$CLIP)) # any dups
+nrow(doh1[doh1$Freq > 1,])
+# YES 28 dup clips
+doh2 <- as.data.frame(table(mo_joined$ORIGINAL_APN)) # any dups
+nrow(doh2[doh2$Freq > 1,])
+# YES 28 dup APNs
+
+# are they the same dupes?
+mo_pub_clip <- mo_pub_spdf[(mo_pub_spdf$CLIP %in% doh1[doh1$Freq > 1,]$Var1),]
+mo_dup_clip <- mo_joined[(mo_joined$CLIP %in% doh1[doh1$Freq > 1,]$Var1),]
+nrow(mo_dup_clip) #56
+
+mo_dup_clip2
+qtm(mo_dup_clip[mo_dup_clip$CLIP== '1006852797',]) + 
+  qtm(pub_spdf[pub_spdf$CLIP == 1006852797,])
+
+qtm(mo_dup_clip) + 
+  qtm(pub_spdf[pub_spdf$CLIP %in% mo_dup_clip$CLIP,])
+# the dup clip ids in pub_spdf seem to make sense when 
+# the pub_spdf points are mapped on the dup clip polys
+# in these cases geom differences account for the dups
+# and the dupes are valid and should stay in pub_spdf
+
+qtm(mo_dup_clip) + 
+  qtm(joined_sf[joined_sf$CLIP %in% mo_dup_clip$CLIP,])
+
+# so same set in pub_spdf and joined_sf
+nrow(joined_sf[joined_sf$CLIP %in% mo_dup_clip$CLIP,]) # 56
+nrow(pub_spdf[pub_spdf$CLIP %in% mo_dup_clip$CLIP,]) # 28
+
+# check difs - what MOCO CL rows are not in the joined data?
+cldiff <- unlist(setdiff(pub_spdf[pub_spdf$SITUS_COUNTY=="MONTEREY",]$CLIP, 
+                         joined_sf[joined_sf$pdata_county=='MONTEREY',]$CLIP ))
+
+
+#numeric(0) YEH
+mo_pub_spdf <- pub_spdf[pub_spdf$SITUS_COUNTY=="MONTEREY",]
+cldiff2 <-  mo_pub_spdf[!(mo_pub_spdf$ORIGINAL_APN %in% mo_cl_parcels$APN),]
+nrow(cldiff2) #57
+length(unique(cldiff2$CLIP))
+length(unique(cldiff2$ORIGINAL_APN))
+cldiff2b <- subset(mo_pub_spdf, !(ORIGINAL_APN %in% mo_cl_parcels$APN))
+nrow(cldiff2b)
+
+
+qtm(mo_cl_parcels) + qtm(cldiff2b, dots.col="red")
+#SOme of the diffs are a spatial mismatch so not in mo_cl_parcels should be in joined_sf
+#Some are in both but have diff APNS, eg
+####OAPN: 031111045000
+####APN:  031111048000
+
+print(cldiff2[1,"ORIGINAL_APN"]$ORIGINAL_APN)
+print(pub_spdf[!(pub_spdf[pub_spdf$SITUS_COUNTY=="MONTEREY",]$ORIGINAL_APN %in% mo_cl_parcels$APN),]$ORIGINAL_APN)
+print(mo_cl_parcels[!(mo_cl_parcels$APN %in% pub_spdf$ORIGINAL_APN),]$APN)
+# Ok so what Parcel rows are in JOINED data but NOT the CL data
+pdiff <- setdiff(joined_sf[joined_sf$pdata_county=='MONTEREY',]$CLIP, 
+                 pub_spdf[pub_spdf$SITUS_COUNTY=="MONTEREY",]$CLIP )
+pdiff
+#numeric(0) HUH?
+
+mo_cl_not_in_pdata <- mo_cl[!(mo_cl_parcels$`APN.(PARCEL.NUMBER.UNFORMATTED)` %in% moparcels$APN),]
+table(mo_cl_not_in_pdata$RECORD.ACTION.INDICATOR, useNA="always")
+qtm(joined_sf[joined_sf$CLIP %in% pdiff,]) + qtm(pub_spdf[pub_spdf$CLIP %in% pdiff,])
