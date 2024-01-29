@@ -1,0 +1,80 @@
+dataset,var,subset,val
+cl full,num rows,total,254837
+cl full,num cols,total,232
+cl full,num rows,Monterey County,132201
+cl full,num rows,Santa Cruz County,99962
+cl full,num rows,San Benito County,22674
+cl full,num rows - unique APNs,total,254796
+cl full,num rows - no lat/lon,total,14076
+cl full,num rows - corp owner,total,36319
+cl full,num rows - unique APNs,Monterey County,132201
+cl full,num rows - unique APNs,Santa Cruz County,99962
+cl full,num rows - unique APNs,San Benito County,22674
+cl full,num rows - no lat/lon,Monterey County,10623
+cl full,num rows - no lat/lon,Santa Cruz County,3368
+cl full,num rows - no lat/lon,San Benito County,85
+cl full,num rows - corp owner,Monterey County,21324
+cl full,num rows - corp owner,Santa Cruz County,12030
+cl full,num rows - corp owner,San Benito County,2965
+cl pub,num rows,total,6950
+cl pub,num rows,Monterey County,3906
+cl pub,num rows,Santa Cruz County,3012
+cl pub,num rows,San Benito County,32
+cl pub,num rows - unique APNs,total,6950
+cl pub,num rows - no lat/lon,total,324
+cl pub,num rows - no lat/lon,Monterey County,298
+cl pub,num rows - no lat/lon,Santa Cruz County,25
+cl pub,num rows - no lat/lon,San Benito County,1
+cl pub geom,num rows,total,6626
+cl pub geom,num rows,Monterey County,3608
+cl pub geom,num rows,Santa Cruz County,2987
+cl pub geom,num rows,San Benito County,31
+sbparcels,num rows (parcels),total,24175
+sbparcels,num rows - unique APNs,total,23808
+sb_cl_parcels,num rows,total,32
+sb_cl_parcels,num rows - unique APNs,total,32
+scparcels,num rows (parcels),total,97021
+scparcels,num rows - unique APNs,total,97021
+sc_cl_parcels,num rows,total,2989
+sc_cl_parcels,num rows - unique APNs,total,2989
+moparcels,num rows (parcels),total,123588
+moparcels,num rows - unique APNs,total,123362
+mo_cl_parcels,num rows,total,3566
+mo_cl_parcels,num rows - unique APNs,total,3566
+cl_points_in_sbparcels,num rows,total,32
+cl_points_in_scparcel_points,num rows,total,2976
+cl_points_in_moparcel_points,num rows,total,3608
+total_num_parcels,num rows in parcel data,total,6587
+all parcel polys,num rows (parcels),total,6587
+all parcel polys,unique APNS (parcels),total,6587
+all parcel polys,SB County (parcels),total,32
+all parcel polys,SC County (parcels),total,2989
+all parcel polys,MO County (parcels),total,3566
+CL public parcels,num rows,total,6626
+CL public parcels,unique APNS (cl),total,6626
+CL public parcels,num rows,San Benito County,31
+CL public parcels,num rows,Santa Cruz County,2987
+CL public parcels,num rows,Monterey County,3608
+CL + Parcels joined,num rows,total,6822
+CL + Parcels joined,unique CLIPS (cl),total,6613
+CL + Parcels joined,unique APNS (cl),total,6613
+CL + Parcels joined,unique APNS (pdata),total,6587
+CL + Parcels joined,num rows (cl),San Benito County,31
+CL + Parcels joined,num rows(cl),Santa Cruz County,3155
+CL + Parcels joined,num rows(cl),Monterey County,3636
+CL + Parcels joined,num rows (pdata),San Benito County,32
+CL + Parcels joined,num rows(pdata),Santa Cruz County,3156
+CL + Parcels joined,num rows(pdata),Monterey County,3634
+CL + Parcels joined,num dup CLIPS,total,115
+CL + Parcels joined,num dup Parcel APNs,total,86
+CL + Parcels joined,num missing CLIPs,total,13
+CL + Parcels joined,num missing Parcel APNs,total,0
+CL + Parcels joined,num dup CLIPS,San Benito County,0
+CL + Parcels joined,num dup CLIPS,Santa Cruz County,268
+CL + Parcels joined,num dup CLIPS,Monterey County,56
+CL + Parcels joined,num dup Parcel APNs,San Benito County,0
+CL + Parcels joined,num dup Parcel APNs,Santa Cruz County,234
+CL + Parcels joined,num dup Parcel APNs,Monterey County,87
+CL + Parcels joined,num missing CLIPS,San Benito County,0
+CL + Parcels joined,num missing CLIPS,Santa Cruz County,13
+CL + Parcels joined,num missing CLIPS,Monterey County,0
