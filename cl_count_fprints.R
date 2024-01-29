@@ -10,7 +10,7 @@ p_load(sf, tmap)
 setwd("~/Documents/ucsc/corelogic")
 
 # Corelogic data file with parcel info
-clfile <- "mobay_cl_and_parcel_data2.geojson"
+clfile <- "mobay_cl_and_parcel_data.geojson"
 
 # footprint data files
 moprintsf <- "footprints/monterey_footprints.csv"
