@@ -151,8 +151,8 @@ class(clpub_parcels_3310_buftenth$geometry)
 clpub_parcels_3310_buftenth <- st_make_valid(clpub_parcels_3310_buftenth)
 
 #take a look at buffers
-tmap_mode('view')
-qtm(clpub_parcels_3310_buftenth)
+#tmap_mode('view')
+#qtm(clpub_parcels_3310_buftenth)
 nrow(clpub_parcels_3310_buftenth)
 nrow(clpub_parcels)
 
@@ -168,9 +168,9 @@ dim(clpub_parcels_3310)
 
 # check this one should have 4 res parcels within buffer
 # pdata_APN = 07611610
-qtm(clpub_parcels_3310_buftenth[clpub_parcels_3310_buftenth$pdata_APN=='07611610',]) + 
-  qtm(clpub_parcels_3310[clpub_parcels_3310$pdata_APN=='07611610',]) +
-  qtm(cldata_res_spdf_3310)
+#qtm(clpub_parcels_3310_buftenth[clpub_parcels_3310_buftenth$pdata_APN=='07611610',]) + 
+#  qtm(clpub_parcels_3310[clpub_parcels_3310$pdata_APN=='07611610',]) +
+#  qtm(cldata_res_spdf_3310)
 
 
 # ok it worked!
@@ -197,9 +197,9 @@ clpub_parcels_3310 <- clpub_parcels_3310 %>%
 colnames(clpub_parcels_3310)
 clpub_parcels_3310[clpub_parcels_3310$pdata_APN=='07611610',]$resqtr_counts
 
-qtm(clpub_parcels_3310_bufqtr[clpub_parcels_3310_bufqtr$pdata_APN=='07611610',]) + 
-  qtm(clpub_parcels_3310[clpub_parcels_3310$pdata_APN=='07611610',]) +
-  qtm(cldata_res_spdf_3310)
+# qtm(clpub_parcels_3310_bufqtr[clpub_parcels_3310_bufqtr$pdata_APN=='07611610',]) + 
+#   qtm(clpub_parcels_3310[clpub_parcels_3310$pdata_APN=='07611610',]) +
+#   qtm(cldata_res_spdf_3310)
 
 # cleanup
 rm(resqtr_counts)
@@ -223,9 +223,9 @@ dim(clpub_parcels_3310)
 clpub_parcels_3310[clpub_parcels_3310$pdata_APN=='07611610',]$reshalf_counts
 
 # plot and count
-qtm(clpub_parcels_3310_bufhalf[clpub_parcels_3310_bufhalf$pdata_APN=='07611610',]) + 
-  qtm(clpub_parcels_3310[clpub_parcels_3310$pdata_APN=='07611610',]) +
-  qtm(cldata_res_spdf_3310)
+# qtm(clpub_parcels_3310_bufhalf[clpub_parcels_3310_bufhalf$pdata_APN=='07611610',]) + 
+#   qtm(clpub_parcels_3310[clpub_parcels_3310$pdata_APN=='07611610',]) +
+#   qtm(cldata_res_spdf_3310)
 
 # deletee huge matrix
 rm(reshalf_counts)
